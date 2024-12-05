@@ -3,7 +3,7 @@ import subprocess
 import time
 
 
-PAUSE = 1700  #change based on satellite velocity   -- 850
+PAUSE = 10000  #change based on satellite velocity   -- 850
 AZIMUTH_COEFFICIENT = 1 #increase elevation movement for poorly working servo 
 ELEVATION_THRESHOLD = 5  # reduce eratic movements in elevation 
 ANTENNA_FLIP = True  # TODO: Calculate the flip from the track file
@@ -107,12 +107,39 @@ def read_satellite_log(file_path):
 
 
 os.system('py test_pyorbital.py')
-time.sleep(20)
+time.sleep(1)
 
 log_file_path = "satellite_pass_log.txt"
 azimuth_array, elevation_array = read_satellite_log(log_file_path)
 
-azimuth_array.append(0)
+print("azimuth array")
+print(azimuth_array)
+
+def detect_and_adjust_flip(azimuths):
+    adjusted_azimuths = []
+    flip_detected = False
+
+    for i, azimuth in enumerate(azimuths):
+        if i > 0 and azimuth < azimuths[i - 1]:
+            # Flip detected when current azimuth is less than the previous one
+            flip_detected = True
+
+        if flip_detected:
+            # Adjust the azimuth by adding 360 to account for the flip
+            adjusted_azimuths.append(azimuth + 360)
+        else:
+            adjusted_azimuths.append(azimuth)
+    
+    return flip_detected, adjusted_azimuths
+
+# Detect and adjust for flip
+flip_detected, new_azimuth_array = detect_and_adjust_flip(azimuth_array)
+
+# Output results
+print("Flip Detected:", flip_detected)
+print("Adjusted Azimuths:", new_azimuth_array)
+
+new_azimuth_array.append(0)
 elevation_array.append(0)
 
 #data for troubleshooting tests
@@ -120,7 +147,7 @@ azimuth_data = [0, 90, 180, 360, 0]
 elevation_data = [10, 20, 30, 40, 0]
 
 # Generate the Arduino code with actual azimuth and elevation values
-generate_arduino_code(azimuth_array, elevation_array)
+generate_arduino_code(new_azimuth_array, elevation_array)
 
 # Compile and upload the code to Arduino
 upload_arduino_code()
