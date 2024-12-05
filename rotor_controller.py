@@ -1,13 +1,13 @@
 import os
 import subprocess
 import time
-import read_file
 
-PAUSE = 850  #change based on satellite velocity 
+
+PAUSE = 1700  #change based on satellite velocity   -- 850
 AZIMUTH_COEFFICIENT = 1 #increase elevation movement for poorly working servo 
 ELEVATION_THRESHOLD = 5  # reduce eratic movements in elevation 
 ANTENNA_FLIP = True  # TODO: Calculate the flip from the track file
-COM_PORT = "COM5"
+COM_PORT = "COM3"
 
 def generate_arduino_code(azimuth_data, elevation_data):
     folder_name = "rotor_controller"
@@ -86,14 +86,41 @@ def upload_arduino_code():
     ]
     subprocess.run(upload_command)
 
-# Example usage: Read azimuth and elevation data from track.txt
-os.system('py correct_data.py')
+
+def read_satellite_log(file_path):
+    azimuths = []
+    elevations = []
+    
+    with open(file_path, "r") as log_file:
+        # Skip the header line
+        next(log_file)
+        
+        for line in log_file:
+            parts = line.strip().split(", ")
+            if len(parts) == 3:
+                azimuth = float(parts[1])  # Second column is azimuth
+                elevation = float(parts[2])  # Third column is elevation
+                azimuths.append(azimuth)
+                elevations.append(elevation)
+    
+    return azimuths, elevations
+
+
+os.system('py test_pyorbital.py')
 time.sleep(20)
-file_path = 'corrected_satellite_data.txt'
-azimuth_data, elevation_data = read_file.extract_azimuth_elevation(file_path)
+
+log_file_path = "satellite_pass_log.txt"
+azimuth_array, elevation_array = read_satellite_log(log_file_path)
+
+azimuth_array.append(0)
+elevation_array.append(0)
+
+#data for troubleshooting tests
+azimuth_data = [0, 90, 180, 360, 0]
+elevation_data = [10, 20, 30, 40, 0]
 
 # Generate the Arduino code with actual azimuth and elevation values
-generate_arduino_code(azimuth_data, elevation_data)
+generate_arduino_code(azimuth_array, elevation_array)
 
 # Compile and upload the code to Arduino
 upload_arduino_code()
